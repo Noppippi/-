@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="20秒でネコちゃんをつくろう。流れてくる子に、ほしい色のネコメットを落とすゲーム。">
+<meta property="og:title" content="ぼくはこの色がほしい！">
+<meta property="og:description" content="20秒でネコちゃんをつくろう">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://noppippi.github.io/-/">
+<meta property="og:image" content="https://noppippi.github.io/-/ogp.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://noppippi.github.io/-/ogp.png">
 <title>ぼくはこの色がほしい！ おもちゃ工場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap" rel="stylesheet">
@@ -45,11 +53,13 @@
   .start:active{transform:translateY(4px);box-shadow:0 1px 0 #222;}
   .spd{position:absolute;top:8px;right:8px;z-index:7;border:2px solid var(--line);background:#fff;color:var(--ink);font:inherit;font-weight:700;font-size:14px;padding:5px 11px;border-radius:999px;cursor:pointer;}
   .spd:active{transform:scale(.92);}
+  .spd.snd{right:auto;left:8px;padding:5px 10px;}
+  .spd.snd.off{opacity:.55;}
   .spd.max{color:#e05a5a;}
   .hidden{display:none !important;}
 
   .result{position:fixed;inset:0;z-index:20;background:var(--bg);overflow:hidden;}
-  #rcv{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  #rcv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
   .res-card{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) scale(.8);opacity:0;pointer-events:none;background:#fff;border:3px solid #4a4a4a;border-radius:22px;padding:16px 22px 18px;text-align:center;z-index:2;box-shadow:0 8px 30px rgba(0,0,0,.15);transition:.3s cubic-bezier(.3,1.5,.6,1);min-width:290px;}
   .res-card.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1);}
   .res-card h2{margin:0;font-size:18px;font-weight:700;}
@@ -84,6 +94,7 @@
     </div>
     <div class="fx" id="fx"></div>
     <button class="spd" id="spdBtn">⏩ ×1</button>
+    <button class="spd snd" id="sndBtn" aria-label="音のオンオフ">🔊</button>
   </div>
 
   <div class="btns" id="btns"></div>
@@ -211,8 +222,9 @@
   window.addEventListener('keydown',e=>{const i='1234'.indexOf(e.key); if(i>=0) drop(COLORS[i]);});
 
   // ---------- sound
+  let muted=false; try{muted=localStorage.getItem('nekoMute')==='1';}catch(e){}
   let ac=null;
-  function beep(f,d=.1,type='sine',v=.15,w=0,f2){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime+w,o=ac.createOscillator(),gn=ac.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);gn.gain.setValueAtTime(v,t);gn.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(gn).connect(ac.destination);o.start(t);o.stop(t+d);}catch(e){}}
+  function beep(f,d=.1,type='sine',v=.15,w=0,f2){if(muted)return;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime+w,o=ac.createOscillator(),gn=ac.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);gn.gain.setValueAtTime(v,t);gn.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(gn).connect(ac.destination);o.start(t);o.stop(t+d);}catch(e){}}
   // ---------- little kid voice reactions (speech synthesis, high pitch)
   let jaVoice=null, lastSay=0, sayPri=0;
   function pickVoice(){ try{ const vs=speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang));
@@ -221,7 +233,7 @@
   const pick=a=>a[Math.floor(Math.random()*a.length)];
   function say(list,pri=1){
     try{
-      if(!window.speechSynthesis) return;
+      if(muted||!window.speechSynthesis) return;
       const now=performance.now();
       if(speechSynthesis.speaking && now-lastSay<650 && pri<=sayPri) return;
       speechSynthesis.cancel();
@@ -275,6 +287,10 @@
   const speed=()=> (S&&S.state==='play' ? 125+75*Math.min(1,(GAME_TIME-S.timeLeft)/GAME_TIME) : 60)*SPEEDS[spdI];
   $('spdBtn').addEventListener('click',e=>{ spdI=(spdI+1)%SPEEDS.length; sfx.tick(); const b=$('spdBtn'); b.textContent='⏩ ×'+SPEEDS[spdI]; b.classList.toggle('max',spdI===SPEEDS.length-1); });
   $('spdBtn').addEventListener('pointerdown',e=>e.stopPropagation());
+  function paintSnd(){const b=$('sndBtn'); b.textContent=muted?'🔇':'🔊'; b.classList.toggle('off',muted);}
+  $('sndBtn').addEventListener('pointerdown',e=>e.stopPropagation());
+  $('sndBtn').addEventListener('click',()=>{ muted=!muted; try{localStorage.setItem('nekoMute',muted?'1':'0');}catch(e){} if(muted){try{speechSynthesis.cancel();}catch(e){}} else sfx.tick(); paintSnd(); });
+  paintSnd();
 
   function hud(){
     $('made').textContent=S.ok; 
@@ -567,7 +583,7 @@
       if(R.eng) window.Matter.Engine.update(R.eng,dt*1000);
       const g=rctx; g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,RW,RH);
       for(const it of R.items){
-        it.sqv+=(-300*it.sq-9*it.sqv)*dt; it.sq+=it.sqv*dt; it.sq=Math.max(-0.1,Math.min(0.16,it.sq));
+        it.sqv+=(-300*it.sq-9*it.sqv)*dt; it.sq+=it.sqv*dt; it.sq=Math.max(it.held?-0.26:-0.1,Math.min(it.held?0.22:0.16,it.sq));
         it.wv+=(-200*it.w-6*it.wv)*dt; it.w+=it.wv*dt;
         it.blinkT-=dt; if(it.blinkT<-0.12)it.blinkT=2+Math.random()*4;
         let x,y,a;
@@ -581,13 +597,45 @@
     };
     R.raf=requestAnimationFrame(step);
   }
-  // poke in result
+  // poke / drag (squeeze) in result
+  let drag=null;
+  function hitItem(x,y){ const M=window.Matter;
+    for(let i=R.items.length-1;i>=0;i--){const it=R.items[i],b=it.body; if(b&&M.Bounds.contains(b.bounds,{x,y})&&M.Vertices.contains(b.vertices,{x,y})) return it;} return null; }
   rcv.addEventListener('pointerdown',e=>{
     if(!R||!R.eng) return;
-    const x=e.clientX, y=e.clientY;
-    for(const it of R.items){ const b=it.body; if(b&&window.Matter.Bounds.contains(b.bounds,{x,y})&&window.Matter.Vertices.contains(b.vertices,{x,y})){
-      window.Matter.Body.setVelocity(b,{x:(Math.random()-.5)*4,y:-9}); window.Matter.Body.setAngularVelocity(b,(Math.random()-.5)*0.3); it.sqv+=4; sfx.puni(1.2); e.stopPropagation(); poked=true; break; } }
+    const M=window.Matter, x=e.clientX, y=e.clientY, it=hitItem(x,y);
+    if(!it) return;
+    e.preventDefault(); poked=true;
+    const b=it.body;
+    const c=M.Constraint.create({pointA:{x,y},bodyB:b,pointB:{x:x-b.position.x,y:y-b.position.y},stiffness:0.12,damping:0.08,length:0});
+    M.Composite.add(R.eng.world,c);
+    drag={it,c,sx:x,sy:y,lx:x,ly:y,lt:performance.now(),moved:0,lastSnd:0,id:e.pointerId};
+    it.sqv+=6; it.held=true; sfx.puni(0.8+Math.random()*0.2);
+    try{rcv.setPointerCapture(e.pointerId);}catch(_){}
   });
+  rcv.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==drag.id) return;
+    const x=e.clientX,y=e.clientY,now=performance.now();
+    const dx=x-drag.lx, dy=y-drag.ly, dt=Math.max(8,now-drag.lt);
+    const sp=Math.hypot(dx,dy)/dt; // px per ms
+    drag.c.pointA={x,y}; drag.moved+=Math.hypot(dx,dy);
+    const it=drag.it;
+    it.sqv-=Math.min(5,sp*3.5);          // びよーんと伸びる
+    it.wv+=(dx/dt)*0.8;                   // メットがぷるぷる
+    if(sp>0.6&&now-drag.lastSnd>140){sfx.puni(0.7+Math.min(0.9,sp*0.4));drag.lastSnd=now;}
+    drag.lx=x;drag.ly=y;drag.lt=now;
+  });
+  function endDrag(e){
+    if(!drag||(e&&e.pointerId!==drag.id)) return;
+    const M=window.Matter, it=drag.it, b=it.body;
+    M.Composite.remove(R.eng.world,drag.c); it.held=false;
+    if(drag.moved<6){ // ただのタップ: ぴょんと跳ねる
+      M.Body.setVelocity(b,{x:(Math.random()-.5)*4,y:-9}); M.Body.setAngularVelocity(b,(Math.random()-.5)*0.3); it.sqv+=4; sfx.puni(1.2);
+    } else { it.sqv+=5; sfx.puni(1.3); }
+    drag=null;
+  }
+  rcv.addEventListener('pointerup',endDrag);
+  rcv.addEventListener('pointercancel',endDrag);
 
   let shotMode=false, poked=false;
   $('shotBtn').addEventListener('click',e=>{
